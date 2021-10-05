@@ -1,13 +1,15 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:todolist_project1/hero_dialog_route.dart';
+import 'package:todolist_project1/widgets/add_todo_popup_card.dart';
+import 'package:todolist_project1/models/TodoItem.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -28,34 +30,44 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class ToDoItemModel {
-  String text;
-  int order;
-  bool checked;
-
-  ToDoItemModel(this.text, {required this.order, this.checked: false});
-}
-
 class _MyHomePageState extends State<MyHomePage> {
-  List<ToDoItemModel> items = [
-    ToDoItemModel('A', order: 0),
-    ToDoItemModel('B', order: 1),
-    ToDoItemModel('C', order: 2),
+  List<ToDoItem> items = [
+    ToDoItem('A', order: 0),
+    ToDoItem('B', order: 1),
+    ToDoItem('C', order: 2),
   ];
 
   updateList(e) {
     setState(() {
-      List<ToDoItemModel> checkeds =
+      List<ToDoItem> checkeds =
           this.items.where((element) => element.checked).toList();
       checkeds.sort((a, b) => a.order - b.order);
 
-      List<ToDoItemModel> uncheckeds =
+      List<ToDoItem> uncheckeds =
           this.items.where((element) => !element.checked).toList();
       uncheckeds.sort((a, b) => a.order - b.order);
 
       this.items.clear();
       this.items.addAll([...uncheckeds, ...checkeds]);
     });
+  }
+
+  final textCtrl = TextEditingController();
+
+  openPopUpCard(void Function(String) onSave) {
+    Navigator.of(context).push(HeroDialogRoute(
+      builder: (context) {
+        return AddTodoPopupCard(
+          textCtrl: textCtrl,
+          onSave: (text) {
+            onSave(text);
+            updateList(e);
+            textCtrl.text = '';
+            Navigator.of(context).pop();
+          },
+        );
+      },
+    ));
   }
 
   @override
@@ -86,11 +98,68 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 ),
-                trailing: IconButton(
-                    onPressed: () {
-                      print('More icon');
-                    },
-                    icon: Icon(Icons.more_vert)),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (t) {
+                    switch (t) {
+                      case 'edit':
+                        this.textCtrl.text = e.text;
+                        openPopUpCard((text) => this
+                            .items
+                            .firstWhere((element) => element.order == e.order)
+                            .text = text);
+                        break;
+                      case 'delete':
+                        this
+                            .items
+                            .removeWhere((element) => element.order == e.order);
+                        updateList(e);
+                        break;
+                    }
+                  },
+                  icon: Icon(Icons.more_vert),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(5)),
+                    side: BorderSide(color: Color(0x99FFFFFF), width: 2),
+                  ),
+                  itemBuilder: (context) {
+                    return [
+                      PopupMenuItem<String>(
+                        height: 12,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Icon(Icons.edit, color: Colors.white),
+                            Text(
+                              'Edit',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        value: 'edit',
+                      ),
+                      PopupMenuDivider(
+                        height: 9,
+                      ),
+                      PopupMenuItem<String>(
+                        height: 12,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Icon(Icons.delete, color: Colors.red),
+                            Text(
+                              'Edit',
+                              textAlign: TextAlign.right,
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ],
+                        ),
+                        value: 'delete',
+                      ),
+                    ];
+                  },
+                  color: Colors.grey.shade700,
+                ),
                 onTap: () {
                   e.checked = !e.checked;
                   updateList(e);
@@ -98,10 +167,54 @@ class _MyHomePageState extends State<MyHomePage> {
               ))
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(right: 15.0),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(HeroDialogRoute(
+              builder: (context) {
+                return AddTodoPopupCard(
+                    textCtrl: textCtrl,
+                    onSave: (text) {
+                      setState(() {
+                        items.add(ToDoItem(text,
+                            order: items
+                                    .reduce((value, element) =>
+                                        element.order > value.order
+                                            ? element
+                                            : value)
+                                    .order +
+                                1));
+                      });
+                      updateList(e);
+                      textCtrl.text = '';
+                      Navigator.of(context).pop();
+                    });
+              },
+            ));
+          },
+          child: Hero(
+            tag: 'add-todo-hero',
+            child: Material(
+              color: Colors.grey.shade800,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
+                  side: const BorderSide(
+                    width: 2,
+                    color: Color(0x99FFFFFF),
+                  )),
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
